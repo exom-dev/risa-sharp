@@ -95,6 +95,12 @@ namespace Risa
         [DllImport(DLL_PATH, EntryPoint = "risa_compiler_create", CallingConvention = CallingConvention.Cdecl)]
         public extern static IntPtr RisaCompilerCreate();
 
+        [DllImport(DLL_PATH, EntryPoint = "risa_compiler_load_strings", CallingConvention = CallingConvention.Cdecl)]
+        public extern static void RisaCompilerLoadStrings(IntPtr compiler, IntPtr strings);
+
+        [DllImport(DLL_PATH, EntryPoint = "risa_compiler_target", CallingConvention = CallingConvention.Cdecl)]
+        public extern static void RisaCompilerTarget(IntPtr compiler, IntPtr vm);
+
         [DllImport(DLL_PATH, EntryPoint = "risa_compiler_get_io", CallingConvention = CallingConvention.Cdecl)]
         public extern static IntPtr RisaCompilerGetIO(IntPtr compiler);
 
@@ -105,7 +111,7 @@ namespace Risa
         public extern static IntPtr RisaCompilerGetStrings(IntPtr compiler);
 
         [DllImport(DLL_PATH, EntryPoint = "risa_compiler_set_repl_mode", CallingConvention = CallingConvention.Cdecl)]
-        public extern static void RisaCompilerSetReplMode(IntPtr compiler, bool value);
+        public extern static void RisaCompilerSetReplMode(IntPtr compiler, byte value);
 
         [DllImport(DLL_PATH, EntryPoint = "risa_compiler_compile", CallingConvention = CallingConvention.Cdecl)]
         public extern static RisaCompilerStatus RisaCompilerCompile(IntPtr compiler, string str);
@@ -118,7 +124,7 @@ namespace Risa
         public extern static RisaValue RisaValueFromNull();
 
         [DllImport(DLL_PATH, EntryPoint = "risa_value_from_bool", CallingConvention = CallingConvention.Cdecl)]
-        public extern static RisaValue RisaValueFromBool(bool value);
+        public extern static RisaValue RisaValueFromBool(byte value);
 
         [DllImport(DLL_PATH, EntryPoint = "risa_value_from_byte", CallingConvention = CallingConvention.Cdecl)]
         public extern static RisaValue RisaValueFromByte(byte value);
@@ -203,6 +209,9 @@ namespace Risa
         [DllImport(DLL_PATH, EntryPoint = "risa_vm_string_create", CallingConvention = CallingConvention.Cdecl)]
         public extern static IntPtr RisaVMStringCreate(IntPtr vm, string str, uint length);
 
+        [DllImport(DLL_PATH, EntryPoint = "risa_vm_load_compiler_data", CallingConvention = CallingConvention.Cdecl)]
+        public extern static void RisaVMLoadCompilerData(IntPtr vm, IntPtr compiler);
+
         [DllImport(DLL_PATH, EntryPoint = "risa_vm_load_function", CallingConvention = CallingConvention.Cdecl)]
         public extern static void RisaVMLoadFunction(IntPtr vm, IntPtr function);
 
@@ -218,11 +227,17 @@ namespace Risa
         [DllImport(DLL_PATH, EntryPoint = "risa_vm_execute", CallingConvention = CallingConvention.Cdecl)]
         public extern static RisaVMStatus RisaVMExecute(IntPtr vm);
 
+        [DllImport(DLL_PATH, EntryPoint = "risa_vm_get_strings", CallingConvention = CallingConvention.Cdecl)]
+        public extern static IntPtr RisaVMGetStrings(IntPtr vm);
+
         [DllImport(DLL_PATH, EntryPoint = "risa_vm_get_io", CallingConvention = CallingConvention.Cdecl)]
         public extern static IntPtr RisaVMGetIO(IntPtr vm);
 
         [DllImport(DLL_PATH, EntryPoint = "risa_vm_get_acc", CallingConvention = CallingConvention.Cdecl)]
         public extern static RisaValue RisaVMGetACC(IntPtr vm);
+
+        [DllImport(DLL_PATH, EntryPoint = "risa_vm_set_repl_mode", CallingConvention = CallingConvention.Cdecl)]
+        public extern static void RisaVMSetReplMode(IntPtr vm, byte value);
 
         [DllImport(DLL_PATH, EntryPoint = "risa_vm_register_dense", CallingConvention = CallingConvention.Cdecl)]
         public extern static void RisaVMRegisterDense(IntPtr vm, IntPtr dense);
@@ -746,7 +761,7 @@ namespace Risa
         /// <param name="boolValue">The boolean value.</param>
         public Value(bool boolValue)
         {
-            data = C99.RisaValueFromBool(boolValue);
+            data = C99.RisaValueFromBool((byte) (boolValue ? 1 : 0));
         }
 
         /// <summary>
@@ -1255,8 +1270,17 @@ namespace Risa
         public Compiler(bool replMode)
         {
             ptr = C99.RisaCompilerCreate();
+            C99.RisaCompilerSetReplMode(ptr, (byte) (replMode ? 1 : 0));
+        }
 
-            C99.RisaCompilerSetReplMode(ptr, replMode);
+        /// <summary>
+        /// Makes the compiler target a specific virtual machine.
+        /// </summary>
+        /// 
+        /// <param name="vm">The virtual machine.</param>
+        public void Target(VM vm)
+        {
+            C99.RisaCompilerTarget(ptr, vm.ptr);
         }
 
         /// <summary>
@@ -1295,8 +1319,6 @@ namespace Risa
     {
         public IntPtr ptr;
 
-        public bool replMode;
-
         /// <summary>
         /// Represents a standard library.
         /// </summary>
@@ -1319,7 +1341,7 @@ namespace Risa
         /// <summary>
         /// Initializes a new instance of the VM class.
         /// </summary>
-        public VM() :this(false) { }
+        public VM() : this(false) { }
 
         /// <summary>
         /// Initializes a new instance of the VM class.
@@ -1329,7 +1351,7 @@ namespace Risa
         public VM(bool replMode)
         {
             ptr = C99.RisaVMCreate();
-            this.replMode = replMode;
+            C99.RisaVMSetReplMode(ptr, (byte)(replMode ? 1 : 0));
         }
 
         /// <summary>
@@ -1340,7 +1362,6 @@ namespace Risa
         public void Load(CompiledScript script)
         {
             C99.RisaVMLoadFunction(ptr, script.function.ptr);
-            C99.RisaVMLoadStrings(ptr, script.strings);
         }
 
         /// <summary>
@@ -1350,10 +1371,16 @@ namespace Risa
         /// <param name="source">The source code.</param>
         public void Load(string source)
         {
-            Compiler compiler = new Compiler(replMode);
+            Compiler compiler = new Compiler();
+            compiler.Target(this);
+
             GetIO().CloneTo(compiler.GetIO());
 
-            Load(compiler.Compile(source));
+            CompiledScript script = compiler.Compile(source);
+
+            C99.RisaVMLoadCompilerData(ptr, compiler.ptr);
+
+            Load(script);
         }
 
         /// <summary>
