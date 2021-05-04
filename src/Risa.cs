@@ -221,6 +221,9 @@ namespace Risa
         [DllImport(DLL_PATH, EntryPoint = "risa_vm_get_io", CallingConvention = CallingConvention.Cdecl)]
         public extern static IntPtr RisaVMGetIO(IntPtr vm);
 
+        [DllImport(DLL_PATH, EntryPoint = "risa_vm_get_acc", CallingConvention = CallingConvention.Cdecl)]
+        public extern static RisaValue RisaVMGetACC(IntPtr vm);
+
         [DllImport(DLL_PATH, EntryPoint = "risa_vm_register_dense", CallingConvention = CallingConvention.Cdecl)]
         public extern static void RisaVMRegisterDense(IntPtr vm, IntPtr dense);
 
@@ -1435,6 +1438,14 @@ namespace Risa
         public IO GetIO()
         {
             return new IO(C99.RisaVMGetIO(ptr));
+        }
+
+        /// <summary>
+        /// Gets the last result, stored in the virtual machine ACC register.
+        /// </summary>
+        public Value GetLastResult()
+        {
+            return new Value(C99.RisaVMGetACC(ptr));
         }
 
         /// <summary>
