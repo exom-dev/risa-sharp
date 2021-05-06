@@ -203,6 +203,10 @@ namespace Risa
         public extern static RisaValue RisaDenseNativeValue(RisaNativeFunction function);
 
 
+        [DllImport(DLL_PATH, EntryPoint = "risa_gc_check", CallingConvention = CallingConvention.Cdecl)]
+        public extern static void RisaGCCheck(IntPtr vm);
+
+
         [DllImport(DLL_PATH, EntryPoint = "risa_vm_create", CallingConvention = CallingConvention.Cdecl)]
         public extern static IntPtr RisaVMCreate();
 
@@ -254,6 +258,12 @@ namespace Risa
 
         [DllImport(DLL_PATH, EntryPoint = "risa_std_register_io", CallingConvention = CallingConvention.Cdecl)]
         public extern static void RisaSTDRegisterIO(IntPtr vm);
+
+        [DllImport(DLL_PATH, EntryPoint = "risa_std_register_string", CallingConvention = CallingConvention.Cdecl)]
+        public extern static void RisaSTDRegisterString(IntPtr vm);
+
+        [DllImport(DLL_PATH, EntryPoint = "risa_std_register_reflect", CallingConvention = CallingConvention.Cdecl)]
+        public extern static void RisaSTDRegisterReflect(IntPtr vm);
 
         [DllImport(DLL_PATH, EntryPoint = "risa_std_register_debug", CallingConvention = CallingConvention.Cdecl)]
         public extern static void RisaSTDRegisterDebug(IntPtr vm);
@@ -1333,6 +1343,14 @@ namespace Risa
             /// </summary>
             IO,
             /// <summary>
+            /// Contains string manipulation functions.
+            /// </summary>
+            STRING,
+            /// <summary>
+            /// Contains reflection-capable functions.
+            /// </summary>
+            REFLECT,
+            /// <summary>
             /// Contains debugging functionality.
             /// </summary>
             DEBUG
@@ -1398,6 +1416,12 @@ namespace Risa
                 case StandardLibrary.IO:
                     C99.RisaSTDRegisterIO(ptr);
                     break;
+                case StandardLibrary.STRING:
+                    C99.RisaSTDRegisterString(ptr);
+                    break;
+                case StandardLibrary.REFLECT:
+                    C99.RisaSTDRegisterReflect(ptr);
+                    break;
                 case StandardLibrary.DEBUG:
                     C99.RisaSTDRegisterDebug(ptr);
                     break;
@@ -1411,6 +1435,8 @@ namespace Risa
         {
             LoadLibrary(StandardLibrary.CORE);
             LoadLibrary(StandardLibrary.IO);
+            LoadLibrary(StandardLibrary.STRING);
+            LoadLibrary(StandardLibrary.REFLECT);
             LoadLibrary(StandardLibrary.DEBUG);
         }
 
@@ -1457,6 +1483,14 @@ namespace Risa
         public Value Invoke(Args context, ValueFunction callee, params Value[] args)
         {
             return callee.Invoke(this, context, args);
+        }
+
+        /// <summary>
+        /// Runs the garbage collector, if necessary.
+        /// </summary>
+        public void GC()
+        {
+            C99.RisaGCCheck(ptr);
         }
 
         /// <summary>
