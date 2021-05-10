@@ -262,6 +262,9 @@ namespace Risa
         [DllImport(DLL_PATH, EntryPoint = "risa_std_register_string", CallingConvention = CallingConvention.Cdecl)]
         public extern static void RisaSTDRegisterString(IntPtr vm);
 
+        [DllImport(DLL_PATH, EntryPoint = "risa_std_register_math", CallingConvention = CallingConvention.Cdecl)]
+        public extern static void RisaSTDRegisterMath(IntPtr vm);
+
         [DllImport(DLL_PATH, EntryPoint = "risa_std_register_reflect", CallingConvention = CallingConvention.Cdecl)]
         public extern static void RisaSTDRegisterReflect(IntPtr vm);
 
@@ -1347,6 +1350,10 @@ namespace Risa
             /// </summary>
             STRING,
             /// <summary>
+            /// Contains mathematical functions.
+            /// </summary>
+            MATH,
+            /// <summary>
             /// Contains reflection-capable functions.
             /// </summary>
             REFLECT,
@@ -1419,6 +1426,9 @@ namespace Risa
                 case StandardLibrary.STRING:
                     C99.RisaSTDRegisterString(ptr);
                     break;
+                case StandardLibrary.MATH:
+                    C99.RisaSTDRegisterMath(ptr);
+                    break;
                 case StandardLibrary.REFLECT:
                     C99.RisaSTDRegisterReflect(ptr);
                     break;
@@ -1436,6 +1446,7 @@ namespace Risa
             LoadLibrary(StandardLibrary.CORE);
             LoadLibrary(StandardLibrary.IO);
             LoadLibrary(StandardLibrary.STRING);
+            LoadLibrary(StandardLibrary.MATH);
             LoadLibrary(StandardLibrary.REFLECT);
             LoadLibrary(StandardLibrary.DEBUG);
         }
