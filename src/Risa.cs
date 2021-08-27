@@ -23,6 +23,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
 /// <summary>
@@ -40,7 +41,6 @@ namespace Risa
 
         [DllImport(DLL_PATH, EntryPoint = "risa_mem_free", CallingConvention = CallingConvention.Cdecl)]
         public extern static void RisaMemFree(IntPtr ptr, IntPtr file, uint line);
-
 
         [DllImport(DLL_PATH, EntryPoint = "risa_cluster_create", CallingConvention = CallingConvention.Cdecl)]
         public extern static IntPtr RisaClusterCreate();
@@ -231,6 +231,9 @@ namespace Risa
         [DllImport(DLL_PATH, EntryPoint = "risa_vm_execute", CallingConvention = CallingConvention.Cdecl)]
         public extern static RisaVMStatus RisaVMExecute(IntPtr vm);
 
+        [DllImport(DLL_PATH, EntryPoint = "risa_vm_run", CallingConvention = CallingConvention.Cdecl)]
+        public extern static RisaVMStatus RisaVMRun(IntPtr vm, uint maxInstr);
+
         [DllImport(DLL_PATH, EntryPoint = "risa_vm_get_strings", CallingConvention = CallingConvention.Cdecl)]
         public extern static IntPtr RisaVMGetStrings(IntPtr vm);
 
@@ -305,6 +308,7 @@ namespace Risa
         public enum RisaVMStatus
         {
             RISA_VM_STATUS_OK,
+            RISA_VM_STATUS_HALTED,
             RISA_VM_STATUS_ERROR
         }
 
@@ -368,10 +372,14 @@ namespace Risa
         /// <param name="function">The native function.</param>
         public static C99.RisaNativeFunction CreateC99Delegate(VM vm, Function function)
         {
-            return new C99.RisaNativeFunction((c99Vm, c99Argc, c99Args) =>
+            C99.RisaNativeFunction fn = new C99.RisaNativeFunction((c99Vm, c99Argc, c99Args) =>
             {
                 return function(vm, new Args(c99Argc, c99Args)).data;
             });
+
+            vm.c99Delegates.Add(fn);
+
+            return fn;
         }
     }
 
@@ -1175,6 +1183,12 @@ namespace Risa
 
         public IntPtr ptr;
 
+        // The GC will invalidate the handlers unless there are managed references still around,
+        // because the CLR doesn't know that the handlers are still internally referenced in the C99 implementation.
+        private InHandler inHandler;
+        private OutHandler outHandler;
+        private OutHandler errHandler;
+
         /// <summary>
         /// Represents a Risa input handler.
         /// </summary>
@@ -1208,6 +1222,7 @@ namespace Risa
         /// <param name="handler">The input handler.</param>
         public void RedirectIn(InHandler handler)
         {
+            inHandler = handler;
             C99.RisaIoRedirectIn(ptr, handler);
             C99.RisaIOSetFreeInput(ptr, false); // Don't free the strings that come from the custom input handler; those are freed by the CLR GC.
         }
@@ -1219,7 +1234,8 @@ namespace Risa
         /// <param name="handler">The output handler.</param>
         public void RedirectOut(OutHandler handler)
         {
-            C99.RisaIoRedirectOut(ptr, handler);
+            outHandler = handler;
+            C99.RisaIoRedirectOut(ptr, outHandler);
         }
 
         /// <summary>
@@ -1228,6 +1244,7 @@ namespace Risa
         /// <param name="handler">The error handler.</param>
         public void RedirectErr(OutHandler handler)
         {
+            errHandler = handler;
             C99.RisaIoRedirectErr(ptr, handler);
         }
 
@@ -1332,6 +1349,10 @@ namespace Risa
     {
         public IntPtr ptr;
 
+        // The GC will invalidate the delegates unless there are managed references still around,
+        // because the CLR doesn't know that the delegates are still internally referenced in the C99 implementation.
+        public List<C99.RisaNativeFunction> c99Delegates;
+
         /// <summary>
         /// Represents a standard library.
         /// </summary>
@@ -1376,6 +1397,7 @@ namespace Risa
         public VM(bool replMode)
         {
             ptr = C99.RisaVMCreate();
+            c99Delegates = new List<C99.RisaNativeFunction>();
             C99.RisaVMSetReplMode(ptr, (byte)(replMode ? 1 : 0));
         }
 
@@ -1476,12 +1498,20 @@ namespace Risa
         /// <summary>
         /// Runs the virtual machine.
         /// </summary>
-        public void Run()
+        /// 
+        /// <param name="maxInstructions">The maximum number of instructions to run. 0 means run all.</param>
+        /// 
+        /// <returns>True, if the VM has executed all instructions. False, if there are more instructions to execute.</returns>
+        public bool Run(uint maxInstructions = 0)
         {
-            if (C99.RisaVMExecute(ptr) == C99.RisaVMStatus.RISA_VM_STATUS_ERROR)
+            C99.RisaVMStatus status = C99.RisaVMRun(ptr, maxInstructions);
+
+            if (status == C99.RisaVMStatus.RISA_VM_STATUS_ERROR)
             {
                 throw new RuntimeException();
             }
+
+            return status == C99.RisaVMStatus.RISA_VM_STATUS_OK;
         }
 
         /// <summary>
