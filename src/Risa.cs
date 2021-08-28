@@ -1214,6 +1214,16 @@ namespace Risa
         {
             ptr = c99Ptr;
         }
+
+        /// <summary>
+        /// Destroys the IO class instance.
+        /// </summary>
+        ~IO()
+        {
+            GC.KeepAlive(inHandler);
+            GC.KeepAlive(outHandler);
+            GC.KeepAlive(errHandler);
+        }
         
         /// <summary>
         /// Redirects the input stream.
@@ -1223,7 +1233,7 @@ namespace Risa
         public void RedirectIn(InHandler handler)
         {
             inHandler = handler;
-            C99.RisaIoRedirectIn(ptr, handler);
+            C99.RisaIoRedirectIn(ptr, inHandler);
             C99.RisaIOSetFreeInput(ptr, false); // Don't free the strings that come from the custom input handler; those are freed by the CLR GC.
         }
 
@@ -1245,7 +1255,7 @@ namespace Risa
         public void RedirectErr(OutHandler handler)
         {
             errHandler = handler;
-            C99.RisaIoRedirectErr(ptr, handler);
+            C99.RisaIoRedirectErr(ptr, errHandler);
         }
 
         /// <summary>
@@ -1256,6 +1266,9 @@ namespace Risa
         public void CloneTo(IO dest)
         {
             C99.RisaIOClone(dest.ptr, ptr);
+            dest.inHandler = inHandler;
+            dest.outHandler = outHandler;
+            dest.errHandler = errHandler;
         }
     }
 
@@ -1399,6 +1412,15 @@ namespace Risa
             ptr = C99.RisaVMCreate();
             c99Delegates = new List<C99.RisaNativeFunction>();
             C99.RisaVMSetReplMode(ptr, (byte)(replMode ? 1 : 0));
+        }
+
+        /// <summary>
+        /// Destroys the VM class instance.
+        /// </summary>
+        ~VM()
+        {
+            C99.RisaVMFree(ptr);
+            System.GC.KeepAlive(c99Delegates);
         }
 
         /// <summary>
@@ -1612,10 +1634,5 @@ namespace Risa
         /// <param name="value">The value.</param>
         public Value CreateNative(Native.Function function) =>
             new Value(function, this);
-
-        ~VM()
-        {
-            C99.RisaVMFree(ptr);
-        }
     }
 }
