@@ -378,6 +378,7 @@ namespace Risa
             });
 
             vm.c99Delegates.Add(fn);
+            vm.natives.Add(function);
 
             return fn;
         }
@@ -461,7 +462,10 @@ namespace Risa
             if(index >= argc)
                 throw new IndexOutOfRangeException("Invalid index (expected max " + (argc - 1) + ", got " + index + ")");
 
-            return new Value(C99.RisaDenseNativeGetArg(args, index));
+            Value arg = new Value(C99.RisaDenseNativeGetArg(args, index));
+            GC.KeepAlive(this);
+
+            return arg;
         }
 
         /// <summary>
@@ -470,7 +474,10 @@ namespace Risa
         /// <returns></returns>
         public IntPtr Base()
         {
-            return C99.RisaDenseNativeGetBase(args, argc);
+            IntPtr result = C99.RisaDenseNativeGetBase(args, argc);
+            GC.KeepAlive(this);
+
+            return result;
         }
     }
 
@@ -499,7 +506,10 @@ namespace Risa
         /// </summary>
         public string GetKey()
         {
-            return Marshal.PtrToStringAnsi(C99.RisaDenseStringAsCString(keyPtr));
+            string key = Marshal.PtrToStringAnsi(C99.RisaDenseStringAsCString(keyPtr));
+            GC.KeepAlive(this);
+
+            return key;
         }
 
         /// <summary>
@@ -537,6 +547,7 @@ namespace Risa
         {
             ptr = C99.RisaDenseArrayCreate();
             C99.RisaVMRegisterDense(vm.ptr, ptr);
+            GC.KeepAlive(this);
         }
 
         /// <summary>
@@ -544,7 +555,10 @@ namespace Risa
         /// </summary>
         public uint Count()
         {
-            return C99.RisaDenseArrayGetCount(ptr);
+            uint count = C99.RisaDenseArrayGetCount(ptr);
+            GC.KeepAlive(this);
+
+            return count;
         }
 
         /// <summary>
@@ -559,7 +573,10 @@ namespace Risa
             if (index >= count)
                 throw new IndexOutOfRangeException("Invalid index (expected max " + (count - 1) + ", got " + index + ")");
 
-            return new Value(C99.RisaDenseArrayGet(ptr, index));
+            Value val = new Value(C99.RisaDenseArrayGet(ptr, index));
+            GC.KeepAlive(this);
+
+            return val;
         }
 
         /// <summary>
@@ -576,6 +593,7 @@ namespace Risa
                 throw new IndexOutOfRangeException("Invalid index (expected max " + count + ", got " + index + ")");
 
             C99.RisaDenseArraySet(ptr, index, value.data);
+            GC.KeepAlive(this);
         }
 
         /// <summary>
@@ -625,7 +643,7 @@ namespace Risa
         {
             ptr = C99.RisaDenseObjectCreateUnder(vm.ptr, 0);
             this.vm = vm;
-
+            GC.KeepAlive(this);
         }
 
         /// <summary>
@@ -643,7 +661,10 @@ namespace Risa
         /// </summary>
         public uint Count()
         {
-            return C99.RisaDenseObjectGetCount(ptr);
+            uint count = C99.RisaDenseObjectGetCount(ptr);
+            GC.KeepAlive(this);
+
+            return count;
         }
 
         /// <summary>
@@ -660,7 +681,10 @@ namespace Risa
 
             IntPtr entry = C99.RisaDenseObjectGetEntry(ptr, index);
 
-            return new ObjectEntry(C99.RisaMapEntryGetKey(entry), C99.RisaMapEntryGetValue(entry));
+            ObjectEntry result = new ObjectEntry(C99.RisaMapEntryGetKey(entry), C99.RisaMapEntryGetValue(entry));
+            GC.KeepAlive(this);
+
+            return result;
         }
         
         /// <summary>
@@ -676,6 +700,7 @@ namespace Risa
 
             IntPtr str = C99.RisaVMStringCreate(vm.ptr, key, (uint) key.Length);
             C99.RisaDenseObjectSet(ptr, str, value.data);
+            GC.KeepAlive(this);
         }
 
         /// <summary>
@@ -724,6 +749,8 @@ namespace Risa
             C99.RisaValue result = C99.RisaVMInvokeArgs(vm.ptr, context.Base(), ToValue().data, (byte) args.Length, argsPtr);
 
             pinnedArgs.Free();
+
+            GC.KeepAlive(this);
 
             return new Value(result);
         }
@@ -783,6 +810,7 @@ namespace Risa
         public Value(bool boolValue)
         {
             data = C99.RisaValueFromBool((byte) (boolValue ? 1 : 0));
+            GC.KeepAlive(this);
         }
 
         /// <summary>
@@ -793,6 +821,7 @@ namespace Risa
         public Value(byte byteValue)
         {
             data = C99.RisaValueFromByte(byteValue);
+            GC.KeepAlive(this);
         }
 
         /// <summary>
@@ -803,6 +832,7 @@ namespace Risa
         public Value(long intValue)
         {
             data = C99.RisaValueFromInt(intValue);
+            GC.KeepAlive(this);
         }
 
         /// <summary>
@@ -813,6 +843,7 @@ namespace Risa
         public Value(double floatValue)
         {
             data = C99.RisaValueFromFloat(floatValue);
+            GC.KeepAlive(this);
         }
 
         /// <summary>
@@ -825,6 +856,7 @@ namespace Risa
         {
             data.type = C99.RisaValueType.RISA_VAL_DENSE;
             data.asDense = C99.RisaVMStringCreate(vm.ptr, str, (uint) str.Length);
+            GC.KeepAlive(this);
         }
 
         /// <summary>
@@ -859,6 +891,7 @@ namespace Risa
         {
             data = C99.RisaDenseNativeValue(Native.CreateC99Delegate(vm, nativeValue));
             C99.RisaVMRegisterDense(vm.ptr, data.asDense); // Register it so that the VM destructor can free it.
+            GC.KeepAlive(this);
         }
 
         /// <summary>
@@ -1052,6 +1085,8 @@ namespace Risa
             
             C99.RisaMemFree(c99Str, IntPtr.Zero, 0);
 
+            GC.KeepAlive(this);
+
             return str;
         }
     }
@@ -1078,7 +1113,10 @@ namespace Risa
         /// </summary
         public Cluster GetCluster()
         {
-            return new Cluster(C99.RisaDenseFunctionGetCluster(ptr));
+            Cluster cl = new Cluster(C99.RisaDenseFunctionGetCluster(ptr));
+            GC.KeepAlive(this);
+
+            return cl;
         }
     }
 
@@ -1108,6 +1146,7 @@ namespace Risa
         public void Write(byte data, uint index)
         {
             C99.RisaClusterWrite(ptr, data, index);
+            GC.KeepAlive(this);
         }
 
         /// <summary>
@@ -1118,6 +1157,7 @@ namespace Risa
         public void WriteConstant(C99.RisaValue constant)
         {
             C99.RisaClusterWriteConstant(ptr, constant);
+            GC.KeepAlive(this);
         }
 
         /// <summary>
@@ -1125,7 +1165,10 @@ namespace Risa
         /// </summary>
         public uint GetSize()
         {
-            return C99.RisaClusterGetSize(ptr);
+            uint size = C99.RisaClusterGetSize(ptr);
+            GC.KeepAlive(this);
+
+            return size;
         }
 
         /// <summary>
@@ -1135,7 +1178,10 @@ namespace Risa
         /// <param name="index"></param>
         public byte GetDataAt(uint index)
         {
-            return C99.RisaClusterGetDataAt(ptr, index);
+            byte data = C99.RisaClusterGetDataAt(ptr, index);
+            GC.KeepAlive(this);
+
+            return data;
         }
 
         /// <summary>
@@ -1143,7 +1189,10 @@ namespace Risa
         /// </summary>
         public uint GetConstantCount()
         {
-            return C99.RisaClusterGetConstantCount(ptr);
+            uint count = C99.RisaClusterGetConstantCount(ptr);
+            GC.KeepAlive(this);
+
+            return count;
         }
 
         /// <summary>
@@ -1153,7 +1202,10 @@ namespace Risa
         /// <param name="index">The index.</param>
         public C99.RisaValue GetConstant(uint index)
         {
-            return C99.RisaClusterGetConstantAt(ptr, index);
+            C99.RisaValue cnst = C99.RisaClusterGetConstantAt(ptr, index);
+            GC.KeepAlive(this);
+
+            return cnst;
         }
     }
 
@@ -1235,6 +1287,7 @@ namespace Risa
             inHandler = handler;
             C99.RisaIoRedirectIn(ptr, inHandler);
             C99.RisaIOSetFreeInput(ptr, false); // Don't free the strings that come from the custom input handler; those are freed by the CLR GC.
+            GC.KeepAlive(this);
         }
 
         /// <summary>
@@ -1246,6 +1299,7 @@ namespace Risa
         {
             outHandler = handler;
             C99.RisaIoRedirectOut(ptr, outHandler);
+            GC.KeepAlive(this);
         }
 
         /// <summary>
@@ -1256,6 +1310,7 @@ namespace Risa
         {
             errHandler = handler;
             C99.RisaIoRedirectErr(ptr, errHandler);
+            GC.KeepAlive(this);
         }
 
         /// <summary>
@@ -1269,6 +1324,7 @@ namespace Risa
             dest.inHandler = inHandler;
             dest.outHandler = outHandler;
             dest.errHandler = errHandler;
+            GC.KeepAlive(this);
         }
     }
 
@@ -1299,6 +1355,7 @@ namespace Risa
     public class Compiler
     {
         public IntPtr ptr;
+        private IO io;
 
         /// <summary>
         /// Initializes a new instance of the Compiler class.
@@ -1314,6 +1371,9 @@ namespace Risa
         {
             ptr = C99.RisaCompilerCreate();
             C99.RisaCompilerSetReplMode(ptr, (byte) (replMode ? 1 : 0));
+            io = new IO(C99.RisaCompilerGetIO(ptr));
+
+            GC.KeepAlive(this);
         }
 
         /// <summary>
@@ -1324,6 +1384,7 @@ namespace Risa
         public void Target(VM vm)
         {
             C99.RisaCompilerTarget(ptr, vm.ptr);
+            GC.KeepAlive(this);
         }
 
         /// <summary>
@@ -1331,7 +1392,7 @@ namespace Risa
         /// </summary>
         public IO GetIO()
         {
-            return new IO(C99.RisaCompilerGetIO(ptr));
+            return io;
         }
 
         ~Compiler()
@@ -1351,7 +1412,10 @@ namespace Risa
                 throw new CompileTimeException();
             }
 
-            return new CompiledScript(new CompiledFunction(C99.RisaCompilerGetFunction(ptr)), C99.RisaCompilerGetStrings(ptr));
+            CompiledScript compiled = new CompiledScript(new CompiledFunction(C99.RisaCompilerGetFunction(ptr)), C99.RisaCompilerGetStrings(ptr));
+            GC.KeepAlive(this);
+
+            return compiled;
         }
     }
 
@@ -1365,6 +1429,9 @@ namespace Risa
         // The GC will invalidate the delegates unless there are managed references still around,
         // because the CLR doesn't know that the delegates are still internally referenced in the C99 implementation.
         public List<C99.RisaNativeFunction> c99Delegates;
+        public List<Native.Function> natives;
+
+        private IO io;
 
         /// <summary>
         /// Represents a standard library.
@@ -1411,7 +1478,13 @@ namespace Risa
         {
             ptr = C99.RisaVMCreate();
             c99Delegates = new List<C99.RisaNativeFunction>();
+            natives = new List<Native.Function>();
+
             C99.RisaVMSetReplMode(ptr, (byte)(replMode ? 1 : 0));
+
+            io = new IO(C99.RisaVMGetIO(ptr));
+
+            System.GC.KeepAlive(this);
         }
 
         /// <summary>
@@ -1421,6 +1494,8 @@ namespace Risa
         {
             C99.RisaVMFree(ptr);
             System.GC.KeepAlive(c99Delegates);
+            System.GC.KeepAlive(natives);
+            System.GC.KeepAlive(io);
         }
 
         /// <summary>
@@ -1431,6 +1506,7 @@ namespace Risa
         public void Load(CompiledScript script)
         {
             C99.RisaVMLoadFunction(ptr, script.function.ptr);
+            System.GC.KeepAlive(this);
         }
 
         /// <summary>
@@ -1450,6 +1526,8 @@ namespace Risa
             C99.RisaVMLoadCompilerData(ptr, compiler.ptr);
 
             Load(script);
+            System.GC.KeepAlive(compiler);
+            System.GC.KeepAlive(this);
         }
 
         /// <summary>
@@ -1504,6 +1582,7 @@ namespace Risa
         public void LoadGlobal(string name, Value value)
         {
             C99.RisaVMGlobalSet(ptr, name, (uint) name.Length, value.data);
+            System.GC.KeepAlive(this);
         }
 
         /// <summary>
@@ -1515,6 +1594,7 @@ namespace Risa
         public void LoadGlobalNative(string name, Native.Function native)
         {
             C99.RisaVMGlobalSetNative(ptr, name, (uint) name.Length, Native.CreateC99Delegate(this, native));
+            System.GC.KeepAlive(this);
         }
 
         /// <summary>
@@ -1527,6 +1607,7 @@ namespace Risa
         public bool Run(uint maxInstructions = 0)
         {
             C99.RisaVMStatus status = C99.RisaVMRun(ptr, maxInstructions);
+            System.GC.KeepAlive(this);
 
             if (status == C99.RisaVMStatus.RISA_VM_STATUS_ERROR)
             {
@@ -1545,7 +1626,10 @@ namespace Risa
         /// <param name="args">The arguments to invoke the function with.</param>
         public Value Invoke(Args context, ValueFunction callee, params Value[] args)
         {
-            return callee.Invoke(this, context, args);
+            Value result = callee.Invoke(this, context, args);
+            System.GC.KeepAlive(this);
+
+            return result;
         }
 
         /// <summary>
@@ -1554,6 +1638,7 @@ namespace Risa
         public void GC()
         {
             C99.RisaGCCheck(ptr);
+            System.GC.KeepAlive(this);
         }
 
         /// <summary>
@@ -1561,7 +1646,7 @@ namespace Risa
         /// </summary>
         public IO GetIO()
         {
-            return new IO(C99.RisaVMGetIO(ptr));
+            return io;
         }
 
         /// <summary>
@@ -1569,7 +1654,10 @@ namespace Risa
         /// </summary>
         public Value GetLastResult()
         {
-            return new Value(C99.RisaVMGetACC(ptr));
+            Value result = new Value(C99.RisaVMGetACC(ptr));
+            System.GC.KeepAlive(this);
+
+            return result;
         }
 
         /// <summary>
