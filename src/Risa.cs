@@ -686,7 +686,7 @@ namespace Risa
 
             return result;
         }
-        
+
         /// <summary>
         /// Adds or replaces an entry. The object must be bound to a virtual machine.
         /// </summary>
