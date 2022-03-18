@@ -38,7 +38,7 @@ namespace Risa
     {
         // This is the Risa version. You could replace this with branch-commit (e.g. master-1c2f4d1).
         // The version isn't needed anywhere; it's only used for identifying the risa build.
-        public const string VERSION = "master-1c2f4d1";
+        public const string VERSION = "PREVIEW";
 
         // The default path is 'risa.dll'. Change this to fit your needs.
         public const string DLL_PATH = "risa.dll";
