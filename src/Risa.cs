@@ -36,6 +36,10 @@ namespace Risa
     /// </summary>
     public static class C99
     {
+        // This is the Risa version. You could replace this with branch-commit (e.g. master-1c2f4d1).
+        // The version isn't needed anywhere; it's only used for identifying the risa build.
+        public const string VERSION = "master-1c2f4d1";
+
         // The default path is 'risa.dll'. Change this to fit your needs.
         public const string DLL_PATH = "risa.dll";
 
@@ -987,6 +991,11 @@ namespace Risa
         public bool IsFunction() => GetType() == Type.FUNCTION;
 
         /// <summary>
+        /// Returns whether or not the valie is of type function and is a native function.
+        /// </summary>
+        public bool IsNative() => IsFunction() && C99.RisaDenseGetType(data.asDense) == C99.RisaDenseValueType.RISA_DVAL_NATIVE;
+
+        /// <summary>
         /// Casts the value to bool.
         /// </summary>
         public bool AsBool()
@@ -1506,6 +1515,17 @@ namespace Risa
         public void Load(CompiledScript script)
         {
             C99.RisaVMLoadFunction(ptr, script.function.ptr);
+            System.GC.KeepAlive(this);
+        }
+
+        /// <summary>
+        /// Loads a native function.
+        /// </summary>
+        /// 
+        /// <param name="fn">The native function pointer.</param>
+        public void Load(ValueFunction fn)
+        {
+            C99.RisaVMLoadFunction(ptr, fn.ptr);
             System.GC.KeepAlive(this);
         }
 
